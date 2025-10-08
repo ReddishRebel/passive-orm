@@ -1,0 +1,20 @@
+# NPM publishing files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Development files
+.eslintrc*
+.prettierrc*
+*.test.js
+tests/
+.vscode/
+.github/
+
+# Documentation source
+docs/
+
+# Development configuration
+eslint.config.mjs
+prettier.config.js
+tsconfig.json
