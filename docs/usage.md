@@ -172,9 +172,6 @@ const userWithPostsAndCommentsSchema = RelationMappingSchemaFactory.create()
 
 // Date object conversion
 .property('created_at', 'createdAt', TYPES.DATE)
-
-// ISO string conversion
-.property('updated_at', 'updatedAt', TYPES.ISO_DATE_STRING)
 ```
 
 ### Optional Types with Defaults
@@ -193,15 +190,15 @@ const userWithPostsAndCommentsSchema = RelationMappingSchemaFactory.create()
 ### Custom Types
 
 ```javascript
-import { OwnPropertyType } from 'passive-orm';
+import { RequiredOwnPropertyType } from 'passive-orm';
 
 // Custom transformation
-const upperCaseType = new OwnPropertyType(value => 
+const upperCaseType = new RequiredOwnPropertyType(value => 
   typeof value === 'string' ? value.toUpperCase() : value
 );
 
 // JSON parsing
-const jsonType = new OwnPropertyType(value => 
+const jsonType = new RequiredOwnPropertyType(value => 
   typeof value === 'string' ? JSON.parse(value) : value
 );
 
@@ -216,12 +213,19 @@ const schema = RelationMappingSchemaFactory.create()
 Sometimes you need different transformations for database → object vs object → database:
 
 ```javascript
+import { RequiredOwnPropertyType } from 'passive-orm';
+
+// Create custom types for bidirectional transformation
+const dateToISOType = new RequiredOwnPropertyType(
+  value => value.toISOString(), // Object → Database (Date → ISO string)
+  value => new Date(value)      // Database → Object (ISO string → Date)
+);
+
 const schema = RelationMappingSchemaFactory.create()
   .property(
     'created_at',           // Database column
     'createdAt',            // Object property
-    TYPES.ISO_DATE_STRING,  // Object → Database (Date → ISO string)
-    TYPES.DATE              // Database → Object (ISO string → Date)
+    dateToISOType           // Custom bidirectional type
   );
 
 // Forward mapping (database → object)

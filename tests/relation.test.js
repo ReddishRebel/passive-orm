@@ -1,12 +1,12 @@
-const { test, describe } = require('node:test');
+const { MappingError, RelationMappingSchemaFactory, TYPES } = require('../index');
+const { describe, test } = require('node:test');
 const assert = require('node:assert');
-const { RelationMappingSchemaFactory, TYPES, MappingError } = require('../index');
 
 describe('RelationMappingSchema mapping tests.', () => {
   test('RelationMappingSchemaToRelation_UseSourceType_SourcePropertyTypeDefferFromTargetType', () => {
     const schema = RelationMappingSchemaFactory.create()
-      .property('some_id', 'id', TYPES.NUMBER, TYPES.STRING)
-      .property('some_date', 'someDate', TYPES.ISO_DATE_STRING, TYPES.DATE);
+      .property('some_id', 'id', TYPES.NUMBER)
+      .property('some_date', 'someDate', TYPES.DATE);
 
     const testDate = new Date();
     const data = { id: '100', someDate: testDate };
@@ -284,6 +284,24 @@ describe('RelationMappingSchema mapping tests.', () => {
       result
     );
   });
+
+  test('RelationMappingSchemaToRelation_GetPropertiesFromGetters_ObjectOwnPropertiesExposedAsGetters', () => {
+    const schema = RelationMappingSchemaFactory.create()
+      .property('some_id', 'id', TYPES.STRING)
+      .property('some_key_first', 'someKeyFirst', TYPES.NUMBER);
+
+    class SomeData {
+      get id() {
+        return 'test-1';
+      }
+
+      get someKeyFirst() {
+        return '123';
+      }
+    }
+
+    assert.deepStrictEqual(schema.toRelation(new SomeData()), { some_id: 'test-1', some_key_first: 123 });
+  });
 });
 
 describe('RelationMappingSchema building tests.', () => {
@@ -357,19 +375,6 @@ describe('RelationMappingSchema building tests.', () => {
     assert.throws(() => RelationMappingSchemaFactory.create().property('source', 'target', String), MappingError);
   });
 
-  test('RelationMappingSchemaRequired_ThrowMappingError_InvalidPrefixPassed', () => {
-    assert.throws(() => RelationMappingSchemaFactory.create().required(), MappingError);
-    assert.throws(() => RelationMappingSchemaFactory.create().required(''), MappingError);
-  });
-  test('RelationMappingSchemaOptional_ThrowMappingError_InvalidPrefixPassed', () => {
-    assert.throws(() => RelationMappingSchemaFactory.create().optional(), MappingError);
-    assert.throws(() => RelationMappingSchemaFactory.create().optional(''), MappingError);
-  });
-  test('RelationMappingSchemaCollection_ThrowMappingError_InvalidPrefixPassed', () => {
-    assert.throws(() => RelationMappingSchemaFactory.create().collection(), MappingError);
-    assert.throws(() => RelationMappingSchemaFactory.create().collection(''), MappingError);
-  });
-
   test('RelationMappingSchemaPrimaryKey_ThrowMappingError_InvalidPrimaryKeyPassed', () => {
     assert.throws(() => RelationMappingSchemaFactory.create().primaryKey(), MappingError);
     assert.throws(() => RelationMappingSchemaFactory.create().primaryKey(''), MappingError);
@@ -383,5 +388,61 @@ describe('RelationMappingSchema building tests.', () => {
   test('RelationMappingSchemaRelationName_ThrowMappingError_InvalidRelationNamePassed', () => {
     assert.throws(() => RelationMappingSchemaFactory.create().relationName(), MappingError);
     assert.throws(() => RelationMappingSchemaFactory.create().relationName(''), MappingError);
+  });
+});
+
+describe('ENUM type tests', () => {
+  test('TYPES.ENUM_FactoryFunction_CreatesEnumType', () => {
+    const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending']);
+    const schema = RelationMappingSchemaFactory.create()
+      .property('id', TYPES.STRING)
+      .property('status', 'status', statusEnum);
+
+    const result = schema.toObject([{ id: '1', status: 'active' }]);
+    assert.deepStrictEqual(result, [{ id: '1', status: 'active' }]);
+  });
+
+  test('TYPES.ENUM_InvalidValue_ThrowsError', () => {
+    const statusEnum = TYPES.ENUM(['active', 'inactive']);
+    const schema = RelationMappingSchemaFactory.create()
+      .property('id', TYPES.STRING)
+      .property('status', 'status', statusEnum);
+
+    assert.throws(() => {
+      schema.toObject([{ id: '1', status: 'invalid' }]);
+    }, /Invalid enum value: invalid. Expected one of: active, inactive/);
+  });
+
+  test('TYPES.ENUM_OptionalType_ReturnsOptionalEnum', () => {
+    const statusEnum = TYPES.ENUM(['active', 'inactive']).optional('active');
+    const schema = RelationMappingSchemaFactory.create()
+      .property('id', TYPES.STRING)
+      .property('status', 'status', statusEnum);
+
+    const result = schema.toObject([{ id: '1', status: null }]);
+    assert.deepStrictEqual(result, [{ id: '1', status: 'active' }]);
+  });
+
+  test('TYPES.ENUM_EmptyArray_ThrowsError', () => {
+    assert.throws(() => TYPES.ENUM([]), /Enum values must be a non-empty array/);
+  });
+
+  test('TYPES.ENUM_NonArray_ThrowsError', () => {
+    assert.throws(() => TYPES.ENUM('not-array'), /Enum values must be a non-empty array/);
+  });
+
+  test('TYPES.ENUM_MixedTypes_WorksCorrectly', () => {
+    const mixedEnum = TYPES.ENUM(['string', 42, true]);
+    const schema = RelationMappingSchemaFactory.create()
+      .property('id', TYPES.STRING)
+      .property('value', 'value', mixedEnum);
+
+    const result1 = schema.toObject([{ id: '1', value: 'string' }]);
+    const result2 = schema.toObject([{ id: '2', value: 42 }]);
+    const result3 = schema.toObject([{ id: '3', value: true }]);
+
+    assert.deepStrictEqual(result1, [{ id: '1', value: 'string' }]);
+    assert.deepStrictEqual(result2, [{ id: '2', value: 42 }]);
+    assert.deepStrictEqual(result3, [{ id: '3', value: true }]);
   });
 });

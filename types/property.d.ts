@@ -1,9 +1,28 @@
-export class OwnPropertyType<PropertyType> {
-  constructor(typeFactory: (data: any) => PropertyType);
+export class OwnPropertyType<RelationType, ObjectType> {
+  constructor(fromRelation: (data: RelationType) => ObjectType);
+  constructor(fromRelation: (data: RelationType) => ObjectType, toRelation: (data: ObjectType) => RelationType);
 
-  create(data: any): PropertyType;
+  fromRelation(data: RelationType): ObjectType;
 
-  optional<DefaultType>(defaultValue: DefaultType): OwnPropertyType<PropertyType | DefaultType>;
+  toRelation(data: ObjectType): RelationType;
+}
+
+export class RequiredOwnPropertyType<RelationType, ObjectType> extends OwnPropertyType<RelationType, ObjectType> {
+  kind: 'required';
+
+  optional<ObjectDefault = undefined, RelationDefault = undefined>(
+    objectDefault?: ObjectDefault,
+    relationDefault?: RelationDefault
+  ): OptionalOwnPropertyType<RelationType | RelationDefault, ObjectType | ObjectDefault>;
+}
+
+export class OptionalOwnPropertyType<RelationType, ObjectType> extends OwnPropertyType<RelationType, ObjectType> {
+  kind: 'optional';
+
+  optional<ObjectDefault = undefined, RelationDefault = undefined>(
+    objectDefault?: ObjectDefault,
+    relationDefault?: RelationDefault
+  ): OptionalOwnPropertyType<RelationType | RelationDefault, ObjectType | ObjectDefault>;
 }
 
 export class SubSchemaPropertyType<SchemaDescriptor> {
@@ -12,10 +31,12 @@ export class SubSchemaPropertyType<SchemaDescriptor> {
   constructor(schemaDescriptor: SchemaDescriptor);
 }
 
+export function createEnumType<T extends readonly unknown[]>(values: T): RequiredOwnPropertyType<T[number], T[number]>;
+
 export const TYPES: {
-  STRING: OwnPropertyType<string>;
-  NUMBER: OwnPropertyType<number>;
-  BOOLEAN: OwnPropertyType<boolean>;
-  DATE: OwnPropertyType<Date>;
-  ISO_DATE_STRING: OwnPropertyType<string>;
+  STRING: RequiredOwnPropertyType<string, string>;
+  NUMBER: RequiredOwnPropertyType<number, number>;
+  BOOLEAN: RequiredOwnPropertyType<boolean, boolean>;
+  DATE: RequiredOwnPropertyType<string, Date>;
+  ENUM: typeof createEnumType;
 };

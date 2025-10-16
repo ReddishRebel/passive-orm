@@ -1,6 +1,6 @@
-const { test, describe } = require('node:test');
-const assert = require('node:assert');
 const { RelationMappingSchemaFactory, TYPES } = require('../index');
+const { describe, test } = require('node:test');
+const assert = require('node:assert');
 
 describe('Readme examples tests.', () => {
   test('RelationMappingSchema_CorrectlyMapBasicUsageExample', () => {
@@ -46,5 +46,33 @@ describe('Readme examples tests.', () => {
         ]
       }
     ]);
+  });
+
+  test('RelationMappingSchema_CorrectlyMapEnumUsageExample', () => {
+    const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending']);
+    const priorityEnum = TYPES.ENUM([1, 2, 3, 4, 5]);
+
+    const userSchema = RelationMappingSchemaFactory.create()
+      .property('id', TYPES.STRING)
+      .property('name', TYPES.STRING)
+      .property('status', statusEnum)
+      .property('priority', priorityEnum.optional(3));
+
+    const sampleData = [
+      { id: '1', name: 'Alice', status: 'active', priority: 5 },
+      { id: '2', name: 'Bob', status: 'inactive', priority: null }
+    ];
+
+    const result = userSchema.toObject(sampleData);
+
+    assert.deepStrictEqual(result, [
+      { id: '1', name: 'Alice', status: 'active', priority: 5 },
+      { id: '2', name: 'Bob', status: 'inactive', priority: 3 }
+    ]);
+
+    // Test validation
+    assert.throws(() => {
+      userSchema.toObject([{ id: '1', name: 'Alice', status: 'invalid', priority: 1 }]);
+    }, /Invalid enum value: invalid. Expected one of: active, inactive, pending/);
   });
 });

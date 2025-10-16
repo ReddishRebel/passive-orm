@@ -1,3 +1,3 @@
 export { RelationMappingSchemaFactory } from './types/relation';
-export { TYPES, OwnPropertyType } from './types/property';
+export { TYPES, RequiredOwnPropertyType } from './types/property';
 export { MappingError } from './types/error';

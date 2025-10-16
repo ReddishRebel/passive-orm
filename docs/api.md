@@ -5,7 +5,8 @@
 - [RelationMappingSchemaFactory](#relationmappingschemafactory)
 - [RelationMappingSchema](#relationmappingschema)
 - [TYPES](#types)
-- [OwnPropertyType](#ownpropertytype)
+- [RequiredOwnPropertyType](#requiredownpropertytype)
+- [OptionalOwnPropertyType](#optionalownpropertytype)
 - [MappingError](#mappingerror)
 
 ## RelationMappingSchemaFactory
@@ -74,17 +75,13 @@ const schema = RelationMappingSchemaFactory.create()
 Defines a property mapping with multiple overload signatures:
 
 **Signatures:**
-1. `property(relationKey, objectKey, relationType, objectType)`
-2. `property(relationKey, objectKey, type)`
-3. `property(key, relationType, objectType)`
-4. `property(key, type)`
+1. `property(relationKey, objectKey, type)`
+2. `property(key, type)`
 
 **Parameters:**
 - `relationKey` (string): Column name in the database
 - `objectKey` (string): Property name in the resulting object
-- `relationType` (OwnPropertyType): Type for reverse mapping (object → relation)
-- `objectType` (OwnPropertyType | SubSchemaPropertyType): Type for forward mapping (relation → object)
-- `type` (OwnPropertyType | SubSchemaPropertyType): Used for both directions when types are the same
+- `type` (RequiredOwnPropertyType | OptionalOwnPropertyType | SubSchemaPropertyType): Property type.
 
 **Returns:** New `RelationMappingSchema` instance
 
@@ -96,9 +93,9 @@ Defines a property mapping with multiple overload signatures:
 const schema = RelationMappingSchemaFactory.create()
   .property('user_name', 'name', TYPES.STRING);
 
-// Different types for relation vs object
+// Using optional types
 const schema = RelationMappingSchemaFactory.create()
-  .property('created_at', 'createdAt', TYPES.ISO_DATE_STRING, TYPES.DATE);
+  .property('display_name', 'displayName', TYPES.STRING.optional('Anonymous'));
 
 // Nested schema
 const schema = RelationMappingSchemaFactory.create()
@@ -271,33 +268,69 @@ const relationData = schema.toRelation(objectData);
 
 ## TYPES
 
-Pre-defined property types for common data transformations.
+Pre-defined property types for common data transformations. All TYPES are instances of `RequiredOwnPropertyType`.
 
 ### Available Types
 
 #### `TYPES.STRING`
 Converts values to strings using `String()` constructor.
+**Type:** `RequiredOwnPropertyType<string, string>`
 
 #### `TYPES.NUMBER` 
 Converts values to numbers using `Number()` constructor.
+**Type:** `RequiredOwnPropertyType<number, number>`
 
 #### `TYPES.BOOLEAN`
 Converts values to booleans with special string handling:
 - `'true'` → `true`
 - `'false'` → `false`
 - Other values use truthiness conversion
+**Type:** `RequiredOwnPropertyType<boolean, boolean>`
 
 #### `TYPES.DATE`
-Converts values to Date objects using `new Date(value)`.
+Converts values to Date objects using `new Date(value)` for database-to-object transformation, and to ISO strings using `.toISOString()` for object-to-database transformation.
+**Type:** `RequiredOwnPropertyType<string, Date>`
 
-#### `TYPES.ISO_DATE_STRING`
-Converts values to ISO date strings:
-- Date objects → `.toISOString()`
-- Other values → `new Date(value).toISOString()`
+#### `TYPES.ENUM(values)`
+Factory function that creates an enum type which validates that values match one of the provided array elements. Uses a Set internally for efficient validation.
+**Type:** `(values: T[]) => RequiredOwnPropertyType<T[number], T[number]>`
+
+**Parameters:**
+- `values` (array): Array of allowed values (required, non-empty)
+
+**Throws:** `Error` if values is not a non-empty array
+
+**Example:**
+```javascript
+// Create status enum
+const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending']);
+
+// Use in schema
+const schema = RelationMappingSchemaFactory.create()
+  .property('id', TYPES.STRING)
+  .property('status', 'status', statusEnum);
+
+// Valid transformation
+schema.toObject([{ id: '1', status: 'active' }]);
+// Result: [{ id: '1', status: 'active' }]
+
+// Invalid value throws error
+schema.toObject([{ id: '1', status: 'invalid' }]);
+// Throws: Invalid enum value: invalid. Expected one of: active, inactive, pending
+
+// Works with optional
+const optionalStatusEnum = statusEnum.optional('active');
+schema.toObject([{ id: '1', status: null }]);
+// Result: [{ id: '1', status: 'active' }]
+
+// Supports any type of values
+const versionEnum = TYPES.ENUM([1, 2, 3]);
+const mixedEnum = TYPES.ENUM(['string', 42, true]);
+```
 
 ### Using Optional Types
 
-All types support the `.optional(defaultValue)` method:
+All types support the `.optional(defaultValue)` method which returns an `OptionalOwnPropertyType`:
 
 ```javascript
 // With default value
@@ -306,49 +339,104 @@ TYPES.STRING.optional('N/A')
 // Without default (returns undefined for null/undefined)
 TYPES.NUMBER.optional()
 ```
-
 ---
 
-## OwnPropertyType
+## RequiredOwnPropertyType
 
-Class for creating custom property types with transformation logic.
+Class for creating custom property types with transformation logic. Represents required properties that must have values.
 
 ### Constructor
 
-#### `new OwnPropertyType(typeFactory)`
+#### `new RequiredOwnPropertyType(fromRelation)`
+#### `new RequiredOwnPropertyType(fromRelation, toRelation)`
 
 **Parameters:**
-- `typeFactory` (function): Function that transforms raw values
+- `fromRelation` (function): Function that transforms database values to object values
+- `toRelation` (function, optional): Function that transforms object values back to database values. If not provided, `fromRelation` is used for both directions
 
 **Example:**
 ```javascript
-const customType = new OwnPropertyType(value => value?.toString().toUpperCase());
+import { RequiredOwnPropertyType } from 'passive-orm';
+
+const upperCaseType = new RequiredOwnPropertyType(
+  value => value?.toString().toUpperCase()
+);
+
+// With bidirectional transformation
+const customDateType = new RequiredOwnPropertyType(
+  value => new Date(value),        // DB -> Object
+  value => value.toISOString()     // Object -> DB
+);
 ```
+
+### Properties
+
+#### `kind`
+Always `'required'` for `RequiredOwnPropertyType` instances.
+
+#### `fromRelation(data)`
+Transforms database value to object value.
+
+#### `toRelation(data)`
+Transforms object value back to database value.
 
 ### Methods
 
-#### `create(data)`
+#### `optional(objectDefault, relationDefault)`
 
-Applies the type transformation to data.
-
-**Parameters:**
-- `data` (any): Raw value to transform
-
-**Returns:** Transformed value
-
-#### `optional(defaultValue)`
-
-Creates a new optional version of this type.
+Creates an optional version of this type.
 
 **Parameters:**
-- `defaultValue` (any): Value to use for null/undefined inputs
+- `objectDefault` (any, optional): Default value for object transformation when input is null/undefined
+- `relationDefault` (any, optional): Default value for relation transformation when input is null/undefined
 
-**Returns:** New `OwnPropertyType` instance
+**Returns:** `OptionalOwnPropertyType` instance
 
 **Example:**
 ```javascript
-const customType = new OwnPropertyType(value => value.trim());
-const optionalCustomType = customType.optional('default');
+const requiredType = new RequiredOwnPropertyType(value => value.trim());
+const optionalType = requiredType.optional('default value');
+```
+
+---
+
+## OptionalOwnPropertyType
+
+Class representing optional property types that can handle null/undefined values gracefully.
+
+### Constructor
+
+Typically created via the `.optional()` method on `RequiredOwnPropertyType` rather than directly instantiated.
+
+### Properties
+
+#### `kind`
+Always `'optional'` for `OptionalOwnPropertyType` instances.
+
+#### `fromRelation(data)`
+Transforms database value to object value, returning the default value for null/undefined inputs.
+
+#### `toRelation(data)`
+Transforms object value back to database value, returning the default value for null/undefined inputs.
+
+### Methods
+
+#### `optional(objectDefault, relationDefault)`
+
+Creates a new optional version with updated defaults.
+
+**Parameters:**
+- `objectDefault` (any, optional): New default value for object transformation
+- `relationDefault` (any, optional): New default value for relation transformation
+
+**Returns:** New `OptionalOwnPropertyType` instance
+
+**Example:**
+```javascript
+// Chain optional calls to update defaults
+const optionalWithDefaults = TYPES.STRING
+  .optional('initial default')
+  .optional('updated default');
 ```
 
 ---

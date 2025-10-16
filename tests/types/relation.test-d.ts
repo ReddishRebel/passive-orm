@@ -3,7 +3,7 @@ import {
   CollectionSubSchemaPropertyType,
   OptionalSubSchemaPropertyType
 } from '../../types/relation';
-import { OwnPropertyType } from '../../types/property';
+import { RequiredOwnPropertyType, OptionalOwnPropertyType } from '../../types/property';
 import { RelationMappingSchemaFactory, TYPES } from '../../index';
 import { expectType } from 'tsd';
 
@@ -11,7 +11,7 @@ const schema = RelationMappingSchemaFactory.create()
   .relationName('user')
   .primaryKey('user_id')
   .property('user_id', 'id', TYPES.STRING)
-  .property('name', TYPES.STRING)
+  .property('name', TYPES.STRING.optional())
   .property(
     'posts',
     RelationMappingSchemaFactory.create()
@@ -51,58 +51,51 @@ expectType<
     primaryKey: 'user_id';
     relationName: 'user';
     properties: {
-      user_id: { objectKey: 'id'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
-      name: { objectKey: 'name'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
+      user_id: { objectKey: 'id'; type: RequiredOwnPropertyType<string, string> };
+      name: { objectKey: 'name'; type: OptionalOwnPropertyType<string | undefined, string | undefined> };
       posts: {
         objectKey: 'posts';
-        relationType: null;
-        objectType: CollectionSubSchemaPropertyType<{
+        type: CollectionSubSchemaPropertyType<{
           relationName: 'post';
           properties: {
-            id: { objectKey: 'id'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
-            title: { objectKey: 'title'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
+            id: { objectKey: 'id'; type: RequiredOwnPropertyType<string, string> };
+            title: { objectKey: 'title'; type: RequiredOwnPropertyType<string, string> };
             comments: {
               objectKey: 'comments';
-              relationType: null;
-              objectType: CollectionSubSchemaPropertyType<{
+              type: CollectionSubSchemaPropertyType<{
                 relationName: 'comment';
                 properties: {
-                  id: { objectKey: 'id'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
+                  id: { objectKey: 'id'; type: RequiredOwnPropertyType<string, string> };
                   text: {
                     objectKey: 'text';
-                    objectType: OwnPropertyType<string>;
-                    relationType: OwnPropertyType<string>;
+                    type: RequiredOwnPropertyType<string, string>;
                   };
                 };
               }>;
             };
             metadata: {
               objectKey: 'metadata';
-              relationType: null;
-              objectType: OptionalSubSchemaPropertyType<{
+              type: OptionalSubSchemaPropertyType<{
                 relationName: 'meta';
                 properties: {
-                  id: { objectKey: 'id'; objectType: OwnPropertyType<string>; relationType: OwnPropertyType<string> };
+                  id: { objectKey: 'id'; type: RequiredOwnPropertyType<string, string> };
                   archived: {
                     objectKey: 'archived';
-                    objectType: OwnPropertyType<boolean>;
-                    relationType: OwnPropertyType<boolean>;
+                    type: RequiredOwnPropertyType<boolean, boolean>;
                   };
                 };
               }>;
             };
             tags: {
               objectKey: 'tags';
-              relationType: null;
-              objectType: CollectionSubSchemaPropertyType<{
+              type: CollectionSubSchemaPropertyType<{
                 relationName: 'tag';
                 primaryKey: 'name';
                 transform: (tag: { name: string }) => string;
                 properties: {
                   name: {
                     objectKey: 'name';
-                    objectType: OwnPropertyType<string>;
-                    relationType: OwnPropertyType<string>;
+                    type: RequiredOwnPropertyType<string, string>;
                   };
                 };
               }>;
@@ -117,7 +110,7 @@ expectType<
 expectType<
   {
     id: string;
-    name: string;
+    name: string | undefined;
     posts: {
       id: string;
       title: string;
@@ -128,9 +121,24 @@ expectType<
   }[]
 >(schema.toObject([]));
 
-expectType<{
-  user_id: string;
-  name: string;
-}>(schema.toRelation({ id: '', name: '' }));
+expectType<
+  {
+    user_id: string;
+  } & Partial<{ name: string | undefined }>
+>(schema.toRelation({ id: '', name: '' }));
 
-expectType<[{ id: string; name: string }]>([] as unknown as Parameters<typeof schema.toRelation>);
+expectType<[{ id: string } & Partial<{ name: string | undefined }>]>(
+  [] as unknown as Parameters<typeof schema.toRelation>
+);
+
+// Test String ENUM
+const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending'] as const);
+expectType<RequiredOwnPropertyType<'active' | 'inactive' | 'pending', 'active' | 'inactive' | 'pending'>>(statusEnum);
+
+// Test Number ENUM
+const directEnum = TYPES.ENUM([1, 3, 5] as const);
+expectType<RequiredOwnPropertyType<1 | 3 | 5, 1 | 3 | 5>>(directEnum);
+
+// Test enum values in transformation
+expectType<'active' | 'inactive' | 'pending'>(statusEnum.fromRelation('active' as 'active' | 'inactive' | 'pending'));
+expectType<'active' | 'inactive' | 'pending'>(statusEnum.toRelation('pending' as 'active' | 'inactive' | 'pending'));

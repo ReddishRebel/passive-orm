@@ -1,4 +1,4 @@
-import { SubSchemaPropertyType, OwnPropertyType } from './property';
+import { SubSchemaPropertyType, OptionalOwnPropertyType, RequiredOwnPropertyType } from './property';
 
 declare class RelationSubSchemaPropertyType<TSchemaDescriptor> extends SubSchemaPropertyType<TSchemaDescriptor> {
   get prefix(): string;
@@ -24,17 +24,20 @@ declare class CollectionSubSchemaPropertyType<
   readonly kind = 'collection';
 }
 
+type OwnPropertyType<ObjectType, RelationType> =
+  | RequiredOwnPropertyType<ObjectType, RelationType>
+  | OptionalOwnPropertyType<ObjectType, RelationType>;
+
 type SubSchemaDescriptorPropertyType =
   | OptionalSubSchemaPropertyType<SchemaDescriptor>
   | RequiredSubSchemaPropertyType<SchemaDescriptor>
   | CollectionSubSchemaPropertyType<SchemaDescriptor>;
 
-type SchemaDescriptorPropertyType = OwnPropertyType<any> | SubSchemaDescriptorPropertyType;
+type SchemaDescriptorPropertyType = OwnPropertyType<any, any> | SubSchemaDescriptorPropertyType;
 
 interface SchemaDescriptorProperty {
   objectKey: string;
-  objectType: SchemaDescriptorPropertyType;
-  relationType: SchemaDescriptorPropertyType | null;
+  type: SchemaDescriptorPropertyType;
 }
 
 interface SchemaPropertiesProperties {
@@ -52,21 +55,18 @@ type AddProperty<
   TSchemaDescriptor extends SchemaDescriptor,
   TRelationKey extends string,
   TObjectKey extends string,
-  TObjectPropertyType,
-  TRelationPropertyType
+  TType extends SchemaDescriptorPropertyType
 > = Omit<TSchemaDescriptor, 'properties'> & {
   properties: {
     [K in keyof (TSchemaDescriptor['properties'] & {
       [key in TRelationKey]: {
         objectKey: TObjectKey;
-        objectType: TObjectPropertyType;
-        relationType: TRelationPropertyType extends OwnPropertyType<any> ? TRelationPropertyType : null;
+        type: TType;
       };
     })]: (TSchemaDescriptor['properties'] & {
       [key in TRelationKey]: {
         objectKey: TObjectKey;
-        objectType: TObjectPropertyType;
-        relationType: TRelationPropertyType extends OwnPropertyType<any> ? TRelationPropertyType : null;
+        type: TType;
       };
     })[K];
   };
@@ -88,109 +88,57 @@ declare class RelationMappingSchema<TSchemaDescriptor extends SchemaDescriptor> 
   property<
     const TRelationKey extends string,
     const TObjectKey extends string,
-    const TRelationPropertyType extends OwnPropertyType<any>,
-    const TObjectPropertyType extends SchemaDescriptorPropertyType
+    const TType extends SchemaDescriptorPropertyType
   >(
     relationKey: TRelationKey,
     objectKey: TObjectKey,
-    relationType: TRelationPropertyType,
-    objectType: TObjectPropertyType
+    type: TType
   ): RelationMappingSchema<{
-    [K in keyof AddProperty<
+    [K in keyof AddProperty<TSchemaDescriptor, TRelationKey, TObjectKey, TType>]: AddProperty<
       TSchemaDescriptor,
       TRelationKey,
       TObjectKey,
-      TObjectPropertyType,
-      TRelationPropertyType
-    >]: AddProperty<TSchemaDescriptor, TRelationKey, TObjectKey, TObjectPropertyType, TRelationPropertyType>[K];
-  }>;
-
-  property<
-    const TRelationObjectKey extends string,
-    const TRelationPropertyType extends OwnPropertyType<any>,
-    const TObjectPropertyType extends SchemaDescriptorPropertyType
-  >(
-    relationObjectKey: TRelationObjectKey,
-    relationType: TRelationPropertyType,
-    objectType: TObjectPropertyType
-  ): RelationMappingSchema<{
-    [K in keyof AddProperty<
-      TSchemaDescriptor,
-      TRelationObjectKey,
-      TRelationObjectKey,
-      TObjectPropertyType,
-      TRelationPropertyType
-    >]: AddProperty<
-      TSchemaDescriptor,
-      TRelationObjectKey,
-      TRelationObjectKey,
-      TObjectPropertyType,
-      TRelationPropertyType
+      TType
     >[K];
   }>;
 
-  property<
-    const TRelationKey extends string,
-    const TObjectKey extends string,
-    const TRelationObjectPropertyType extends SchemaDescriptorPropertyType
-  >(
-    relationKey: TRelationKey,
-    objectKey: TObjectKey,
-    relationObjectPropertyType: TRelationObjectPropertyType
-  ): RelationMappingSchema<{
-    [K in keyof AddProperty<
-      TSchemaDescriptor,
-      TRelationKey,
-      TObjectKey,
-      TRelationObjectPropertyType,
-      TRelationObjectPropertyType
-    >]: AddProperty<
-      TSchemaDescriptor,
-      TRelationKey,
-      TObjectKey,
-      TRelationObjectPropertyType,
-      TRelationObjectPropertyType
-    >[K];
-  }>;
-
-  property<
-    const TRelationObjectKey extends string,
-    const TRelationObjectPropertyType extends SchemaDescriptorPropertyType
-  >(
+  property<const TRelationObjectKey extends string, const TType extends SchemaDescriptorPropertyType>(
     relationObjectKey: TRelationObjectKey,
-    relationObjectPropertyType: TRelationObjectPropertyType
+    type: TType
   ): RelationMappingSchema<{
-    [K in keyof AddProperty<
+    [K in keyof AddProperty<TSchemaDescriptor, TRelationObjectKey, TRelationObjectKey, TType>]: AddProperty<
       TSchemaDescriptor,
       TRelationObjectKey,
       TRelationObjectKey,
-      TRelationObjectPropertyType,
-      TRelationObjectPropertyType
-    >]: AddProperty<
-      TSchemaDescriptor,
-      TRelationObjectKey,
-      TRelationObjectKey,
-      TRelationObjectPropertyType,
-      TRelationObjectPropertyType
+      TType
     >[K];
   }>;
 
   primaryKey<T extends string>(
     primaryKey: T
   ): RelationMappingSchema<{
-    [K in keyof (TSchemaDescriptor & { primaryKey: T })]: (TSchemaDescriptor & { primaryKey: T })[K];
+    [K in keyof (Omit<TSchemaDescriptor, 'primaryKey'> & { primaryKey: T })]: (Omit<TSchemaDescriptor, 'primaryKey'> & {
+      primaryKey: T;
+    })[K];
   }>;
 
   relationName<T extends string>(
     relationName: T
   ): RelationMappingSchema<{
-    [K in keyof (TSchemaDescriptor & { relationName: T })]: (TSchemaDescriptor & { relationName: T })[K];
+    [K in keyof (Omit<TSchemaDescriptor, 'relationName'> & { relationName: T })]: (Omit<
+      TSchemaDescriptor,
+      'relationName'
+    > & {
+      relationName: T;
+    })[K];
   }>;
 
   transform<T extends (data: ObjectMappingResult<TSchemaDescriptor, null>) => unknown>(
     transform: T
   ): RelationMappingSchema<{
-    [K in keyof (TSchemaDescriptor & { transform: T })]: (TSchemaDescriptor & { transform: T })[K];
+    [K in keyof (Omit<TSchemaDescriptor, 'transform'> & { transform: T })]: (Omit<TSchemaDescriptor, 'transform'> & {
+      transform: T;
+    })[K];
   }>;
 
   toRelation(objectData: RelationalObjectInput<TSchemaDescriptor>): RelationalMappingResult<TSchemaDescriptor>;
@@ -203,43 +151,60 @@ type RelationalObjectInput<TSchemaDescriptor extends SchemaDescriptor> = TSchema
   : {
       -readonly [K in keyof FilterProperties<
         TSchemaDescriptor['properties'],
-        { objectType: OwnPropertyType<any> }
-      > as TSchemaDescriptor['properties'][K]['objectType'] extends OwnPropertyType<any>
+        { type: RequiredOwnPropertyType<any, any> }
+      > as TSchemaDescriptor['properties'][K]['type'] extends RequiredOwnPropertyType<any, any>
         ? TSchemaDescriptor['properties'][K]['objectKey']
-        : never]: TSchemaDescriptor['properties'][K]['objectType'] extends OwnPropertyType<infer TPropertyType>
-        ? TPropertyType
+        : never]: TSchemaDescriptor['properties'][K]['type'] extends RequiredOwnPropertyType<any, infer TObjectType>
+        ? TObjectType
         : unknown;
-    };
+    } & Partial<{
+      -readonly [K in keyof FilterProperties<
+        TSchemaDescriptor['properties'],
+        { type: OptionalOwnPropertyType<any, any> }
+      > as TSchemaDescriptor['properties'][K]['type'] extends OptionalOwnPropertyType<any, any>
+        ? TSchemaDescriptor['properties'][K]['objectKey']
+        : never]: TSchemaDescriptor['properties'][K]['type'] extends OptionalOwnPropertyType<any, infer TObjectType>
+        ? TObjectType
+        : unknown;
+    }>;
 
 type RelationalMappingResult<TSchemaDescriptor extends SchemaDescriptor> = TSchemaDescriptor extends boolean
   ? boolean
   : {
       -readonly [K in keyof FilterProperties<
         TSchemaDescriptor['properties'],
-        { relationType: OwnPropertyType<any> }
-      >]: TSchemaDescriptor['properties'][K]['relationType'] extends OwnPropertyType<infer TPropertyType>
-        ? TPropertyType
+        { type: RequiredOwnPropertyType<any, any> }
+      >]: TSchemaDescriptor['properties'][K]['type'] extends RequiredOwnPropertyType<infer TRelationType, any>
+        ? TRelationType
         : unknown;
-    };
+    } & Partial<{
+      -readonly [K in keyof FilterProperties<
+        TSchemaDescriptor['properties'],
+        { type: OptionalOwnPropertyType<any, any> }
+      >]: TSchemaDescriptor['properties'][K]['type'] extends OptionalOwnPropertyType<infer TRelationType, any>
+        ? TRelationType
+        : unknown;
+    }>;
 
 type ObjectMappingResult<TSchemaDescriptor extends SchemaDescriptor, TDefault> = TSchemaDescriptor extends {
   transform: (data: any) => infer R;
 }
   ? R
   : {
-      -readonly [K in keyof TSchemaDescriptor['properties'] as TSchemaDescriptor['properties'][K]['objectKey']]: TSchemaDescriptor['properties'][K]['objectType'] extends OwnPropertyType<
-        infer TPropertyType
+      -readonly [K in keyof TSchemaDescriptor['properties'] as TSchemaDescriptor['properties'][K]['objectKey']]: TSchemaDescriptor['properties'][K]['type'] extends OwnPropertyType<
+        any,
+        infer TObjectType
       >
-        ? TPropertyType
-        : TSchemaDescriptor['properties'][K]['objectType'] extends RequiredSubSchemaPropertyType<
+        ? TObjectType
+        : TSchemaDescriptor['properties'][K]['type'] extends RequiredSubSchemaPropertyType<
               infer TSubSchemaDescriptor extends SchemaDescriptor
             >
           ? ObjectMappingResult<TSubSchemaDescriptor, TDefault>
-          : TSchemaDescriptor['properties'][K]['objectType'] extends CollectionSubSchemaPropertyType<
+          : TSchemaDescriptor['properties'][K]['type'] extends CollectionSubSchemaPropertyType<
                 infer TSubSchemaDescriptor extends SchemaDescriptor
               >
             ? ObjectMappingResult<TSubSchemaDescriptor, TDefault>[]
-            : TSchemaDescriptor['properties'][K]['objectType'] extends OptionalSubSchemaPropertyType<
+            : TSchemaDescriptor['properties'][K]['type'] extends OptionalSubSchemaPropertyType<
                   infer TSubSchemaDescriptor extends SchemaDescriptor
                 >
               ? ObjectMappingResult<TSubSchemaDescriptor, TDefault> | TDefault

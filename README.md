@@ -109,7 +109,7 @@ const users = userSchema.toObject(rows);
 
 - `RelationMappingSchemaFactory` - Create mapping schemas
 - `TYPES` - Built-in type converters (STRING, NUMBER, BOOLEAN, DATE, etc.)
-- `OwnPropertyType` - Create custom type transformations
+- `RequiredOwnPropertyType` - Create custom type transformations
 - `MappingError` - Error handling for schema and mapping issues
 
 ## 📣 Contributing
