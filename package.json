@@ -1,6 +1,6 @@
 {
   "name": "passive-orm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight object-relational mapper for mapping flat and joined SQL results into nested JavaScript objects.",
   "keywords": [
     "orm",
