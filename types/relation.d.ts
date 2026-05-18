@@ -108,7 +108,7 @@ declare class RelationMappingSchema<TSchemaDescriptor extends SchemaDescriptor> 
     relationName: T
   ): RelationMappingSchema<Omit<TSchemaDescriptor, 'relationName'> & { relationName: T }>;
 
-  transform<T extends (data: Simplify<ObjectMappingResult<TSchemaDescriptor, null>>) => unknown>(
+  transform<T extends (data: ObjectMappingResult<TSchemaDescriptor, null>) => unknown>(
     transform: T
   ): RelationMappingSchema<Omit<TSchemaDescriptor, 'transform'> & { transform: T }>;
 
@@ -116,7 +116,7 @@ declare class RelationMappingSchema<TSchemaDescriptor extends SchemaDescriptor> 
     objectData: Simplify<RelationalObjectInput<TSchemaDescriptor>>
   ): Simplify<RelationalMappingResult<TSchemaDescriptor>>;
 
-  toObject(rows: any[]): Simplify<ObjectMappingResult<TSchemaDescriptor, null>>[];
+  toObject(rows: any[]): ObjectMappingResult<TSchemaDescriptor, null>[];
 }
 
 type RelationalObjectInput<TSchemaDescriptor extends SchemaDescriptor> = TSchemaDescriptor extends boolean
@@ -163,7 +163,7 @@ type ObjectMappingResult<TSchemaDescriptor extends SchemaDescriptor, TDefault> =
   transform: (data: any) => infer R;
 }
   ? R
-  : {
+  : Simplify<{
       -readonly [K in keyof TSchemaDescriptor['properties'] as TSchemaDescriptor['properties'][K]['objectKey']]: TSchemaDescriptor['properties'][K]['type'] extends OwnPropertyType<
         any,
         infer TObjectType
@@ -182,7 +182,7 @@ type ObjectMappingResult<TSchemaDescriptor extends SchemaDescriptor, TDefault> =
                 >
               ? ObjectMappingResult<TSubSchemaDescriptor, TDefault> | TDefault
               : unknown;
-    };
+    }>;
 
 export class RelationMappingSchemaFactory {
   static create(): RelationMappingSchema<{ properties: {} }>;

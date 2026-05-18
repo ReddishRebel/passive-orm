@@ -142,6 +142,25 @@ expectType<
   }[]
 >(schema.toObject([]));
 
+// `toObject` must yield the `transform` return type `R` verbatim when the root
+// schema defines a `transform`. `Simplify` is applied to the mapped object shape
+// only — never to `R` — so primitive and custom return types pass through and
+// backward compatibility is preserved.
+const primitiveTransformSchema = RelationMappingSchemaFactory.create()
+  .relationName('user')
+  .property('user_id', 'id', TYPES.STRING)
+  .property('name', TYPES.STRING)
+  .transform(data => data.id);
+
+expectType<string[]>(primitiveTransformSchema.toObject([]));
+
+const objectTransformSchema = RelationMappingSchemaFactory.create()
+  .relationName('user')
+  .property('user_id', 'id', TYPES.STRING)
+  .transform(data => ({ identifier: data.id }));
+
+expectType<{ identifier: string }[]>(objectTransformSchema.toObject([]));
+
 // `toRelation` flattens its result once via `Simplify`, so the optional
 // properties surface as `?`-keys instead of an `& Partial<...>` intersection.
 expectType<{ user_id: string; name?: string | undefined }>(schema.toRelation({ id: '', name: '' }));
