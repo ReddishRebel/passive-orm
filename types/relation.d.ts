@@ -57,24 +57,24 @@ type AddProperty<
   TObjectKey extends string,
   TType extends SchemaDescriptorPropertyType
 > = Omit<TSchemaDescriptor, 'properties'> & {
-  properties: {
-    [K in keyof (TSchemaDescriptor['properties'] & {
-      [key in TRelationKey]: {
-        objectKey: TObjectKey;
-        type: TType;
-      };
-    })]: (TSchemaDescriptor['properties'] & {
-      [key in TRelationKey]: {
-        objectKey: TObjectKey;
-        type: TType;
-      };
-    })[K];
+  properties: TSchemaDescriptor['properties'] & {
+    [K in TRelationKey]: { objectKey: TObjectKey; type: TType };
   };
 };
 
 type FilterProperties<T, U> = {
   [K in keyof T as T[K] extends U ? K : never]: T[K];
 };
+
+/**
+ * Collapses an intersection chain into a single object type.
+ *
+ * The builder methods keep their accumulated descriptor as a cheap chain of
+ * intersections (see `AddProperty`) so type instantiation stays linear. This
+ * helper is applied once, at the consumption points (`toObject`, `toRelation`
+ * and the `transform` callback), to flatten that chain into a readable shape.
+ */
+type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 declare class RelationMappingSchema<TSchemaDescriptor extends SchemaDescriptor> {
   optional(prefix: string): OptionalSubSchemaPropertyType<TSchemaDescriptor>;
@@ -93,57 +93,30 @@ declare class RelationMappingSchema<TSchemaDescriptor extends SchemaDescriptor> 
     relationKey: TRelationKey,
     objectKey: TObjectKey,
     type: TType
-  ): RelationMappingSchema<{
-    [K in keyof AddProperty<TSchemaDescriptor, TRelationKey, TObjectKey, TType>]: AddProperty<
-      TSchemaDescriptor,
-      TRelationKey,
-      TObjectKey,
-      TType
-    >[K];
-  }>;
+  ): RelationMappingSchema<AddProperty<TSchemaDescriptor, TRelationKey, TObjectKey, TType>>;
 
   property<const TRelationObjectKey extends string, const TType extends SchemaDescriptorPropertyType>(
     relationObjectKey: TRelationObjectKey,
     type: TType
-  ): RelationMappingSchema<{
-    [K in keyof AddProperty<TSchemaDescriptor, TRelationObjectKey, TRelationObjectKey, TType>]: AddProperty<
-      TSchemaDescriptor,
-      TRelationObjectKey,
-      TRelationObjectKey,
-      TType
-    >[K];
-  }>;
+  ): RelationMappingSchema<AddProperty<TSchemaDescriptor, TRelationObjectKey, TRelationObjectKey, TType>>;
 
   primaryKey<T extends string>(
     primaryKey: T
-  ): RelationMappingSchema<{
-    [K in keyof (Omit<TSchemaDescriptor, 'primaryKey'> & { primaryKey: T })]: (Omit<TSchemaDescriptor, 'primaryKey'> & {
-      primaryKey: T;
-    })[K];
-  }>;
+  ): RelationMappingSchema<Omit<TSchemaDescriptor, 'primaryKey'> & { primaryKey: T }>;
 
   relationName<T extends string>(
     relationName: T
-  ): RelationMappingSchema<{
-    [K in keyof (Omit<TSchemaDescriptor, 'relationName'> & { relationName: T })]: (Omit<
-      TSchemaDescriptor,
-      'relationName'
-    > & {
-      relationName: T;
-    })[K];
-  }>;
+  ): RelationMappingSchema<Omit<TSchemaDescriptor, 'relationName'> & { relationName: T }>;
 
-  transform<T extends (data: ObjectMappingResult<TSchemaDescriptor, null>) => unknown>(
+  transform<T extends (data: Simplify<ObjectMappingResult<TSchemaDescriptor, null>>) => unknown>(
     transform: T
-  ): RelationMappingSchema<{
-    [K in keyof (Omit<TSchemaDescriptor, 'transform'> & { transform: T })]: (Omit<TSchemaDescriptor, 'transform'> & {
-      transform: T;
-    })[K];
-  }>;
+  ): RelationMappingSchema<Omit<TSchemaDescriptor, 'transform'> & { transform: T }>;
 
-  toRelation(objectData: RelationalObjectInput<TSchemaDescriptor>): RelationalMappingResult<TSchemaDescriptor>;
+  toRelation(
+    objectData: Simplify<RelationalObjectInput<TSchemaDescriptor>>
+  ): Simplify<RelationalMappingResult<TSchemaDescriptor>>;
 
-  toObject(rows: any[]): ObjectMappingResult<TSchemaDescriptor, null>[];
+  toObject(rows: any[]): Simplify<ObjectMappingResult<TSchemaDescriptor, null>>[];
 }
 
 type RelationalObjectInput<TSchemaDescriptor extends SchemaDescriptor> = TSchemaDescriptor extends boolean

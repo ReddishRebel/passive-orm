@@ -1,7 +1,8 @@
 import {
   RelationMappingSchema,
   CollectionSubSchemaPropertyType,
-  OptionalSubSchemaPropertyType
+  OptionalSubSchemaPropertyType,
+  RequiredSubSchemaPropertyType
 } from '../../types/relation';
 import { RequiredOwnPropertyType, OptionalOwnPropertyType } from '../../types/property';
 import { RelationMappingSchemaFactory, TYPES } from '../../index';
@@ -46,8 +47,28 @@ const schema = RelationMappingSchemaFactory.create()
       .collection('post_')
   );
 
-expectType<
-  RelationMappingSchema<{
+// The builder accumulates its descriptor as a cheap intersection chain (so type
+// instantiation stays linear and never hits "excessively deep"). `DeepSimplify`
+// collapses that chain — including nested sub-schemas — back into a plain object
+// type so the structural assertion below can compare it exactly.
+type DescriptorOf<T> = T extends RelationMappingSchema<infer TSchemaDescriptor> ? TSchemaDescriptor : never;
+
+type DeepSimplify<T> = T extends RequiredOwnPropertyType<any, any> | OptionalOwnPropertyType<any, any>
+  ? T
+  : T extends CollectionSubSchemaPropertyType<infer TSubSchemaDescriptor>
+    ? CollectionSubSchemaPropertyType<DeepSimplify<TSubSchemaDescriptor>>
+    : T extends OptionalSubSchemaPropertyType<infer TSubSchemaDescriptor>
+      ? OptionalSubSchemaPropertyType<DeepSimplify<TSubSchemaDescriptor>>
+      : T extends RequiredSubSchemaPropertyType<infer TSubSchemaDescriptor>
+        ? RequiredSubSchemaPropertyType<DeepSimplify<TSubSchemaDescriptor>>
+        : T extends (...args: any[]) => unknown
+          ? T
+          : T extends object
+            ? { [K in keyof T]: DeepSimplify<T[K]> }
+            : T;
+
+expectType<DeepSimplify<DescriptorOf<typeof schema>>>(
+  null as unknown as {
     primaryKey: 'user_id';
     relationName: 'user';
     properties: {
@@ -104,8 +125,8 @@ expectType<
         }>;
       };
     };
-  }>
->(schema);
+  }
+);
 
 expectType<
   {
@@ -121,15 +142,11 @@ expectType<
   }[]
 >(schema.toObject([]));
 
-expectType<
-  {
-    user_id: string;
-  } & Partial<{ name: string | undefined }>
->(schema.toRelation({ id: '', name: '' }));
+// `toRelation` flattens its result once via `Simplify`, so the optional
+// properties surface as `?`-keys instead of an `& Partial<...>` intersection.
+expectType<{ user_id: string; name?: string | undefined }>(schema.toRelation({ id: '', name: '' }));
 
-expectType<[{ id: string } & Partial<{ name: string | undefined }>]>(
-  [] as unknown as Parameters<typeof schema.toRelation>
-);
+expectType<[{ id: string; name?: string | undefined }]>([] as unknown as Parameters<typeof schema.toRelation>);
 
 // Test String ENUM
 const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending'] as const);

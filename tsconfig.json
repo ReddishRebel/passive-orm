@@ -8,6 +8,7 @@
     "target": "esnext",
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "noImplicitAny": false,
     "strictNullChecks": true
   },
   "include": ["./lib", "./types", "index.js", "index.d.ts"],
