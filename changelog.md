@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-11
+
+### Fixed
+
+- Preserve explicit `null` defaults in optional property types in both mapping directions, including repeated `.optional()` calls.
+
+### Changed
+
+- Use Node.js 24 for development and CI, with matching Node.js type definitions. The package's minimum supported Node.js version remains unchanged.
+- Update GitHub Actions to `actions/checkout@v7.0.1` and `actions/setup-node@v7.1.0`.
+- Include `changelog.md` in the published package using its correct filename.
+
 ## [1.0.0] - 2025-10-08
 
 ### Added
@@ -84,5 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Consistent Naming** - Clear, descriptive method and property names
 - **Extensibility** - Plugin-friendly architecture for custom types
 
-[unreleased]: https://github.com/ReddishRebel/passive-orm/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/ReddishRebel/passive-orm/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/ReddishRebel/passive-orm/compare/v1.0.2...v1.0.3
 [1.0.0]: https://github.com/ReddishRebel/passive-orm/releases/tag/v1.0.0

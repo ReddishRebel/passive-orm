@@ -391,6 +391,20 @@ describe('RelationMappingSchema building tests.', () => {
   });
 });
 
+test('Preserves null defaults through schema mapping', () => {
+  const schema = RelationMappingSchemaFactory.create()
+    .property('id', TYPES.STRING)
+    .property('display_name', 'displayName', TYPES.STRING.optional(null, null));
+
+  for (const value of [null, undefined]) {
+    assert.deepStrictEqual(schema.toObject([{ id: '1', display_name: value }]), [{ id: '1', displayName: null }]);
+    assert.deepStrictEqual(schema.toRelation({ id: '1', displayName: value }), {
+      id: '1',
+      display_name: null
+    });
+  }
+});
+
 describe('ENUM type tests', () => {
   test('TYPES.ENUM_FactoryFunction_CreatesEnumType', () => {
     const statusEnum = TYPES.ENUM(['active', 'inactive', 'pending']);

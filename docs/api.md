@@ -330,7 +330,8 @@ const mixedEnum = TYPES.ENUM(['string', 42, true]);
 
 ### Using Optional Types
 
-All types support the `.optional(defaultValue)` method which returns an `OptionalOwnPropertyType`:
+All types support the `.optional(objectDefault, relationDefault)` method which returns an `OptionalOwnPropertyType`.
+Defaults are independent for each mapping direction and are returned unchanged for null/undefined inputs, including an explicit `null` default:
 
 ```javascript
 // With default value
@@ -338,6 +339,9 @@ TYPES.STRING.optional('N/A')
 
 // Without default (returns undefined for null/undefined)
 TYPES.NUMBER.optional()
+
+// Return null for null/undefined inputs in both mapping directions
+TYPES.STRING.optional(null, null)
 ```
 ---
 

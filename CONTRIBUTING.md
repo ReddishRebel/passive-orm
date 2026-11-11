@@ -10,9 +10,10 @@ Thank you for your interest in contributing to passive-orm! This document provid
    cd passive-orm
    ```
 
-2. **Install dependencies:**
+2. **Use Node.js 24 and install dependencies:**
    ```bash
-   npm install
+   nvm use
+   npm ci
    ```
 
 3. **Run tests to ensure everything works:**
@@ -177,7 +178,7 @@ Update `docs/usage.md` for:
 (For maintainers)
 
 1. Update version in `package.json`
-2. Update `CHANGELOG.md`
+2. Update `changelog.md`
 3. Run full test suite
 4. Create git tag
 5. Publish to npm
